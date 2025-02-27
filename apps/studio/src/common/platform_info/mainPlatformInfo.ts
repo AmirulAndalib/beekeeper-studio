@@ -1,11 +1,33 @@
-
 import yargs from 'yargs-parser'
+import _ from 'lodash'
 import { resolve, join } from 'path'
 import { IPlatformInfo } from '../IPlatformInfo'
+import { BksVersion } from '@/lib/license'
 
 // TODO: Automatically enable wayland without flags once
 // we're confident it will 'just work' for all Wayland users.
 const p = process
+
+export function resolveAppVersion(appVersion): BksVersion {
+  const [major, minor, patch, channelVersion] = appVersion.split('.')
+
+  if(!patch?.includes('-')) {
+    // no -beta or -alpha
+    return { major: Number(major), minor: Number(minor), patch: Number(patch), channel: 'stable' }
+  }
+
+  const [ realPatch, channel ] = patch.split('-')
+
+  return {
+    major: Number(major),
+    minor: Number(minor),
+    patch: Number(realPatch),
+    channel,
+    channelRelease: Number(channelVersion || 0)
+  }
+
+}
+
 
 export function mainPlatformInfo(): IPlatformInfo {
 
@@ -24,7 +46,11 @@ export function mainPlatformInfo(): IPlatformInfo {
 
   const updatesDisabled = !!p.env.BEEKEEPER_DISABLE_UPDATES
 
-  const oracleSupported = isMac && isArm ? false : true
+  // previous builds of Beekeeper Studio required native libs for Oracle,
+  // but now it should work on all platforms
+  // FIXME: Windows ARM - this needs to be disabled
+  // as instant client not available there
+  const oracleSupported = true
 
   const resourcesPath = isDevEnv ? resolve('./extra_resources') : resolve(p.resourcesPath)
   let userDirectory = testMode ? './tmp' : e.app.getPath("userData")
@@ -38,13 +64,9 @@ export function mainPlatformInfo(): IPlatformInfo {
 
   const slice = isDevEnv ? 2 : 1
   const parsedArgs = yargs(p.argv.slice(slice))
+  const appVersion = testMode ? '0.0.0' : e.app.getVersion()
 
-
-
-  const appVersion = testMode ? 'test-mode' : e.app.getVersion()
-  const [major, minor, patch] = appVersion.split('.')
-  const parsedAppVersion = { major: Number(major), minor: Number(minor), patch: Number(patch) }
-
+  const parsedAppVersion = resolveAppVersion(appVersion)
   function isWaylandMode() {
     return parsedArgs['ozone-platform-hint'] === 'auto' &&
       sessionType === 'wayland' && !isWindows && !isMac

@@ -10,8 +10,8 @@ export interface Result {
 export class Pool {
   private pool: Firebird.ConnectionPool;
 
-  constructor(config: Firebird.Options) {
-    this.pool = Firebird.pool(5, config);
+  constructor(poolSize: number, config: Firebird.Options) {
+    this.pool = Firebird.pool(poolSize, config);
   }
 
   async query(
@@ -125,12 +125,11 @@ export class Connection {
                   }
 
                   // reading data
-                  let val = '';
-                  event.on('data', (chunk) => {
-                    val += chunk.toString('binary');
-                  });
+                  const chunks: Buffer[] = []
+                  event.on('data', (chunk: Buffer) => chunks.push(chunk));
                   event.on('end', () => {
-                    resBlob({ value: val, column: name, row });
+                    // TODO find how many bytes to read to get faster
+                    resBlob({ value: Buffer.concat(chunks), column: name, row });
                   });
                 });
               });
@@ -228,12 +227,11 @@ export class Transaction {
                   }
 
                   // reading data
-                  let val = '';
-                  event.on('data', (chunk) => {
-                    val += chunk.toString('binary');
-                  });
+                  const chunks: Buffer[] = []
+                  event.on('data', (chunk: Buffer) => chunks.push(chunk));
                   event.on('end', () => {
-                    resBlob({ value: val, column: name, row });
+                    // TODO find how many bytes to read to get faster
+                    resBlob({ value: Buffer.concat(chunks), column: name, row });
                   });
                 });
               });

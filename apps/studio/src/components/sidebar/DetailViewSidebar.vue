@@ -4,35 +4,6 @@
     ref="sidebar"
     v-show="!hidden"
   >
-    <div class="community-overlay" v-if="$store.getters.isCommunity">
-      <button
-        class="close-btn btn btn-fab"
-        @click="close"
-      >
-        <i class="material-icons">close</i>
-      </button>
-      <span class="title">
-        Upgrade to premium
-      </span>
-      <span class="body">
-        Upgrade to premium to access this feature and additional benefits,
-        including magic formatting, backup & restore, and more!
-      </span>
-      <div class="actions">
-        <a
-          href="https://docs.beekeeperstudio.io/docs/upgrading-from-the-community-edition"
-          class="btn btn-flat"
-        >
-          Learn more
-        </a>
-        <a
-          href="https://docs.beekeeperstudio.io/docs/upgrading-from-the-community-edition"
-          class="btn btn-primary"
-        >
-          Upgrade
-        </a>
-      </div>
-    </div>
     <div class="header">
       <div class="header-group">
         <span class="title sub">{{ sidebarTitle }}</span>
@@ -53,11 +24,12 @@
             type="text"
             placeholder="Filter fields"
             v-model="debouncedFilter"
-          />
+          >
           <button
             type="button"
             class="clear btn-link"
             @click="filter = ''"
+            v-if="filter"
           >
             <i class="material-icons">cancel</i>
           </button>
@@ -87,14 +59,15 @@
       :fold-all="foldAll"
       :unfold-all="unfoldAll"
       :value="text"
-      :forced-value="text"
       :mode="mode"
       :force-initizalize="reinitializeTextEditor + (reinitialize ?? 0)"
       :markers="markers"
+      :plugins="textEditorPlugins"
     />
     <div class="empty-state" v-show="empty">
       No Data
     </div>
+    <detail-view-sidebar-upsell v-if="$store.getters.isCommunity" />
   </div>
 </template>
 
@@ -105,7 +78,6 @@
  * dataId:  use this to update the component with new data.
  */
 import Vue from "vue";
-import Sidebar from "@/components/common/Sidebar.vue";
 import TextEditor from "@/components/common/texteditor/TextEditor.vue";
 import {
   ExpandablePath,
@@ -119,14 +91,16 @@ import {
 } from "@/lib/data/detail_view";
 import { mapGetters } from "vuex";
 import { EditorMarker } from "@/lib/editor/utils";
-import rawLog from "electron-log";
+import { persistJsonFold } from "@/lib/editor/plugins/persistJsonFold";
+import DetailViewSidebarUpsell from '@/components/upsell/DetailViewSidebarUpsell.vue'
+import rawLog from "@bksLogger";
 import _ from "lodash";
 import globals from '@/common/globals'
 
 const log = rawLog.scope("detail-view-sidebar");
 
 export default Vue.extend({
-  components: { Sidebar, TextEditor },
+  components: { TextEditor, DetailViewSidebarUpsell },
   props: ["value", "hidden", "expandablePaths", "dataId", "title", "reinitialize"],
   data() {
     return {
@@ -154,7 +128,7 @@ export default Vue.extend({
   },
   computed: {
     sidebarTitle() {
-      return this.title ?? "Detail View Sidebar"
+      return this.title ?? "JSON Row Viewer"
     },
     empty() {
       return _.isEmpty(this.value);
@@ -185,9 +159,9 @@ export default Vue.extend({
     },
     processedValue() {
       const clonedValue = _.cloneDeep(this.value)
-      eachPaths(clonedValue, (path, value: string) => {
+      eachPaths(clonedValue, (path, value) => {
         if (this.truncatedPaths.includes(path)) {
-          _.set(clonedValue, path, value.slice(0, globals.maxDetailViewTextLength))
+          _.set(clonedValue, path, (value as string).slice(0, globals.maxDetailViewTextLength))
         }
       })
       return clonedValue
@@ -263,35 +237,35 @@ export default Vue.extend({
     menuOptions() {
       return [
         {
-          name: "Expand FK by default",
-          handler: () => {
-            this.$store.dispatch("toggleExpandFKDetailsByDefault");
-          },
-          checked: this.expandFKDetailsByDefault,
-        },
-        {
-          name: "Fold all",
-          handler: () => {
-            this.foldAll++;
-          },
-        },
-        {
-          name: "Unfold all",
-          handler: () => {
-            this.unfoldAll++;
-          },
-        },
-        {
-          name: "Copy",
+          name: "Copy Visible",
           handler: () => {
             this.$native.clipboard.writeText(this.text);
           },
         },
         {
-          name: "Close",
-          handler: this.close,
+          name: "Collapse all",
+          handler: () => {
+            this.foldAll++;
+          },
         },
+        {
+          name: "Expand all",
+          handler: () => {
+            this.unfoldAll++;
+          },
+        },
+        {
+          name: "Always Expand Foreign Keys",
+          handler: () => {
+            this.$store.dispatch("toggleExpandFKDetailsByDefault");
+          },
+          checked: this.expandFKDetailsByDefault,
+        },
+
       ]
+    },
+    textEditorPlugins() {
+      return [persistJsonFold]
     },
     ...mapGetters(["expandFKDetailsByDefault"]),
   },
