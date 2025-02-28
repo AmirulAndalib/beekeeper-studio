@@ -51,7 +51,7 @@ export class ElectronUtilityConnectionClient implements IBasicDatabaseClient {
   }
 
   async listMaterializedViewColumns(table: string, schema?: string): Promise<TableColumn[]> {
-    return await Vue.prototype.$util.send('conn/listMaterializedViews', { table, schema })
+    return await Vue.prototype.$util.send('conn/listMaterializedViewColumns', { table, schema })
   }
 
   async listTableColumns(table: string, schema?: string): Promise<ExtendedTableColumn[]> {
@@ -122,7 +122,7 @@ export class ElectronUtilityConnectionClient implements IBasicDatabaseClient {
     return await Vue.prototype.$util.send('conn/getPrimaryKeys', { table, schema });
   }
 
-  async createDatabase(databaseName: string, charset: string, collation: string): Promise<void> {
+  async createDatabase(databaseName: string, charset: string, collation: string): Promise<string> {
     return await Vue.prototype.$util.send('conn/createDatabase', { databaseName, charset, collation });
   }
 
